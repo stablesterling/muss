@@ -72,6 +72,7 @@
             -webkit-font-smoothing:antialiased;
             -moz-osx-font-smoothing:grayscale;
             overflow-x:hidden;
+            padding-bottom:120px;
         }
 
         .container { 
@@ -516,98 +517,113 @@
         .video-card .favorite-btn:active { transform:scale(0.85); }
         .video-card .favorite-btn.active { color:#ff6b6b; border-color:#ff6b6b; background:rgba(255,107,107,0.2); }
 
-        /* Player - NO YOUTUBE LOGO */
+        /* ============================================
+           FIXED MINI PLAYER AT BOTTOM
+           ============================================ */
+        .mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 10px 16px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+            animation: slideUp 0.4s var(--transition-bounce);
+        }
+
+        .mini-player.active {
+            display: flex;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .mini-player .thumbnail {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .mini-player .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .mini-player .info {
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+        }
+
+        .mini-player .info .title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-display);
+        }
+
+        .mini-player .info .artist {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mini-player .controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .mini-player .controls .btn {
+            padding: 6px 10px;
+            font-size: 1.1rem;
+            min-height: 36px;
+            min-width: 36px;
+        }
+
+        .mini-player .progress-bar {
+            position: absolute;
+            top: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-color);
+            cursor: pointer;
+        }
+
+        .mini-player .progress-bar .progress {
+            height: 100%;
+            width: 0%;
+            background: var(--gold-gradient);
+            border-radius: var(--radius-full);
+            transition: width 0.5s linear;
+        }
+
+        .mini-player .progress-bar .progress.active {
+            transition: none;
+        }
+
+        /* Hide the old player container */
         .player-container {
-            margin-top:16px; 
-            padding:16px;
-            background:var(--bg-glass); 
-            backdrop-filter:blur(20px); 
-            -webkit-backdrop-filter:blur(20px);
-            border-radius:var(--radius-lg); 
-            border:1px solid var(--border-color);
-            box-shadow:var(--shadow-md); 
-            animation:fadeUp 0.6s var(--transition-smooth) 0.2s both;
-            transition:all 0.4s var(--transition-smooth);
-        }
-        #player { 
-            width:100%; 
-            max-width:100%; 
-            margin:0 auto; 
-            aspect-ratio:16/9; 
-            border-radius:var(--radius-sm); 
-            overflow:hidden; 
-            box-shadow:var(--shadow-sm);
-            background:#000;
-        }
-        .ytp-logo, .ytp-copy-link, .ytp-share-button, .ytp-watch-later-button {
-            display:none !important;
-        }
-        .player-controls {
-            display:flex; 
-            align-items:center; 
-            justify-content:center; 
-            gap:12px;
-            padding:12px 0 4px; 
-            flex-wrap:wrap;
-        }
-        .player-controls .btn-icon { 
-            width:var(--touch-target); 
-            height:var(--touch-target); 
-            font-size:18px; 
-            min-height:var(--touch-target);
-            min-width:var(--touch-target);
-        }
-        .volume-control { 
-            display:flex; 
-            align-items:center; 
-            gap:8px; 
-            flex:1;
-            max-width:160px;
-        }
-        .volume-control input[type="range"] {
-            flex:1;
-            height:4px; 
-            -webkit-appearance:none;
-            background:var(--border-color); 
-            border-radius:var(--radius-full); 
-            outline:none;
-            min-height:var(--touch-target);
-        }
-        .volume-control input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance:none; 
-            width:14px; 
-            height:14px; 
-            border-radius:50%;
-            background:var(--gold-gradient); 
-            cursor:pointer; 
-            box-shadow:var(--shadow-gold);
-        }
-        .now-playing { 
-            text-align:center; 
-            padding:8px 0 2px; 
-            color:var(--text-secondary); 
-            transition:all 0.4s var(--transition-smooth); 
-        }
-        .now-playing.active { color:var(--text-primary); }
-        .now-playing .now-label { 
-            font-size:0.6rem; 
-            text-transform:uppercase; 
-            letter-spacing:0.12em; 
-            color:var(--text-muted); 
-        }
-        .now-playing .song-title {
-            font-family:var(--font-display); 
-            font-size:1.1rem; 
-            font-weight:600;
-            background:var(--gold-gradient); 
-            -webkit-background-clip:text; 
-            -webkit-text-fill-color:transparent;
-            background-clip:text; 
-            margin:2px 0;
-        }
-        .now-playing .song-artist {
-            color:var(--text-secondary); 
-            font-size:0.8rem;
+            display: none;
         }
 
         /* Toast */
@@ -683,12 +699,13 @@
             .video-card .info h3 { font-size:0.75rem; }
             .video-card .actions .btn { font-size:0.6rem; padding:3px 6px; }
             .video-card .favorite-btn { width:28px; height:28px; font-size:14px; top:6px; right:6px; }
-            .player-container { padding:12px; }
-            .now-playing .song-title { font-size:1rem; }
             .modal-content { padding:24px 16px 20px; }
             .tabs .tab { font-size:0.7rem; padding:6px 12px; }
             #searchInput { font-size:0.9rem; padding:12px 14px 12px 40px; }
             #searchBtn { font-size:0.85rem; padding:12px; }
+            .mini-player .thumbnail { width:44px; height:44px; }
+            .mini-player .info .title { font-size:0.75rem; }
+            .mini-player .controls .btn { font-size:0.9rem; min-height:32px; min-width:32px; padding:4px 8px; }
         }
 
         @media (min-width:481px) and (max-width:768px) {
@@ -737,10 +754,11 @@
             .video-card .info h3 { font-size:0.7rem; }
             .video-card .actions { padding:4px 8px 8px; gap:3px; }
             .video-card .actions .btn { font-size:0.55rem; padding:2px 6px; min-height:24px; }
-            .player-container { padding:10px; margin-top:10px; }
-            #player { max-height:200px; }
-            .now-playing .song-title { font-size:0.9rem; }
+            .mini-player { padding:6px 12px; }
+            .mini-player .thumbnail { width:36px; height:36px; }
+            .mini-player .info .title { font-size:0.7rem; }
             .tabs .tab { font-size:0.65rem; padding:4px 10px; min-height:30px; }
+            body { padding-bottom:70px; }
         }
 
         @media (hover:none) {
@@ -837,20 +855,25 @@
         </div>
     </div>
 
-    <div id="playerContainer" class="player-container">
-        <div id="player"></div>
-        <div class="now-playing" id="nowPlaying">
-            <span class="now-label">Now Playing</span>
-            <p style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">Select a song to begin</p>
-        </div>
-        <div class="player-controls">
-            <button class="btn btn-ghost btn-icon" onclick="togglePlay()" id="playPauseBtn" aria-label="Play/Pause">▶</button>
-            <div class="volume-control">
-                <span style="font-size:14px;color:var(--text-secondary);" aria-hidden="true">🔊</span>
-                <input type="range" id="volumeSlider" min="0" max="100" value="70" aria-label="Volume control" />
-            </div>
-            <button class="btn btn-ghost btn-icon" onclick="shareSong()" title="Share" aria-label="Share song">↗</button>
-        </div>
+    <!-- Hidden Player (1px) for audio only -->
+    <div id="player" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></div>
+</div>
+
+<!-- Fixed Mini Player at Bottom -->
+<div class="mini-player" id="miniPlayer">
+    <div class="progress-bar" id="progressBar">
+        <div class="progress" id="progressFill"></div>
+    </div>
+    <div class="thumbnail" id="miniThumbnail" onclick="togglePlay()">
+        <img id="miniThumbnailImg" src="" alt="Album art" />
+    </div>
+    <div class="info" onclick="togglePlay()">
+        <div class="title" id="miniTitle">No song playing</div>
+        <div class="artist" id="miniArtist">Select a track</div>
+    </div>
+    <div class="controls">
+        <button class="btn btn-ghost btn-icon" onclick="togglePlay()" id="miniPlayBtn" aria-label="Play/Pause">▶</button>
+        <button class="btn btn-ghost btn-icon" onclick="shareSong()" title="Share" aria-label="Share song">↗</button>
     </div>
 </div>
 
@@ -859,7 +882,6 @@
 // ============================================
 // CONFIGURATION - PRODUCTION READY
 // ============================================
-// UPDATE THIS with your Render  URL after deployment
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000/api'
     : 'https://vofo-backend.onrender.com/api';
@@ -868,6 +890,7 @@ let token = localStorage.getItem('token');
 let currentUser = null;
 let currentTab = 'search';
 let isPlaying = false;
+let currentSongData = null;
 
 // ============================================
 // PARTICLES
@@ -1010,28 +1033,29 @@ function updateUI() {
 }
 
 // ============================================
-// YOUTUBE PLAYER - NO LOGO
+// YOUTUBE PLAYER - HIDDEN (Audio Only)
 // ============================================
 let player = null;
 let isPlayerReady = false;
 let currentVideoId = null;
 let volume = 70;
+let progressInterval = null;
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {
-        height: '100%', 
-        width: '100%', 
+        height: '1', 
+        width: '1', 
         videoId: '',
         playerVars: { 
-            modestbranding: 1,      // Removes YouTube logo
-            rel: 0,                 // No related videos at end
-            controls: 1,            // Show controls
-            autoplay: 1, 
-            fs: 0,                  // No fullscreen button
-            iv_load_policy: 3,      // No annotations
-            cc_load_policy: 0,      // No captions by default
-            showinfo: 0,            // No video info
-            branding: 0,            // No branding
+            modestbranding: 1,
+            rel: 0,
+            controls: 0,
+            autoplay: 1,
+            fs: 0,
+            iv_load_policy: 3,
+            cc_load_policy: 0,
+            showinfo: 0,
+            branding: 0,
             origin: window.location.origin
         },
         events: {
@@ -1046,38 +1070,64 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerStateChange(event) {
-    const btn = document.getElementById('playPauseBtn');
+    const btn = document.getElementById('miniPlayBtn');
     if (event.data === YT.PlayerState.PLAYING) {
         isPlaying = true;
         btn.textContent = '⏸';
-        try {
-            const data = player.getVideoData();
-            if (data && data.title) {
-                document.getElementById('nowPlaying').innerHTML = `
-                    <span class="now-label">Now Playing</span>
-                    <p class="song-title">${escapeHtml(data.title)}</p>
-                    <p class="song-artist">${escapeHtml(data.author || 'Artist')}</p>
-                `;
-                document.getElementById('nowPlaying').classList.add('active');
-            }
-        } catch (e) {}
+        document.getElementById('miniPlayer').classList.add('active');
+        startProgress();
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         btn.textContent = '▶';
+        stopProgress();
     } else if (event.data === YT.PlayerState.ENDED) {
         btn.textContent = '▶';
+        isPlaying = false;
+        stopProgress();
+        document.getElementById('progressFill').style.width = '0%';
     }
 }
 
 function togglePlay() {
-    if (!player) return;
-    isPlaying ? player.pauseVideo() : player.playVideo();
+    if (!player || !isPlayerReady) { 
+        showToast('Player is loading...', 'info'); 
+        return; 
+    }
+    if (currentVideoId) {
+        isPlaying ? player.pauseVideo() : player.playVideo();
+    }
 }
 
-document.getElementById('volumeSlider').addEventListener('input', function() {
+document.getElementById('volumeSlider')?.addEventListener('input', function() {
     volume = parseInt(this.value);
     if (player) player.setVolume(volume);
 });
+
+// ============================================
+// PROGRESS BAR
+// ============================================
+function startProgress() {
+    stopProgress();
+    progressInterval = setInterval(() => {
+        try {
+            if (player && player.getCurrentTime && player.getDuration) {
+                const current = player.getCurrentTime();
+                const duration = player.getDuration();
+                if (duration > 0) {
+                    const percent = (current / duration) * 100;
+                    document.getElementById('progressFill').style.width = percent + '%';
+                }
+            }
+        } catch (e) {}
+    }, 1000);
+}
+
+function stopProgress() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+}
 
 // ============================================
 // SEARCH
@@ -1124,7 +1174,7 @@ async function loadTrending() {
 function displayResults(songs) {
     resultsDiv.innerHTML = songs.map((song, index) => `
         <div class="video-card" style="animation-delay:${index * 0.05}s">
-            <div class="thumbnail" onclick="playVideo('${song.id}', '${escapeHtml(song.title)}', '${escapeHtml(song.artist)}')" role="button" aria-label="Play ${escapeHtml(song.title)}">
+            <div class="thumbnail" onclick="playSong('${song.id}', '${escapeHtml(song.title)}', '${escapeHtml(song.artist)}', '${song.thumbnail}')" role="button" aria-label="Play ${escapeHtml(song.title)}">
                 <img src="${song.thumbnail}" alt="${escapeHtml(song.title)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%23333%22/><text x=%22160%22 y=%2290%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2240%22>🎵</text></svg>'" />
                 <div class="overlay"><div class="play-circle" aria-hidden="true">▶</div></div>
             </div>
@@ -1133,7 +1183,7 @@ function displayResults(songs) {
                 <span class="channel">${escapeHtml(song.artist)}</span>
             </div>
             <div class="actions">
-                <button class="btn btn-primary" onclick="event.stopPropagation();playVideo('${song.id}','${escapeHtml(song.title)}','${escapeHtml(song.artist)}')" aria-label="Play ${escapeHtml(song.title)}">Play</button>
+                <button class="btn btn-primary" onclick="event.stopPropagation();playSong('${song.id}','${escapeHtml(song.title)}','${escapeHtml(song.artist)}','${song.thumbnail}')" aria-label="Play ${escapeHtml(song.title)}">Play</button>
                 <button class="btn btn-outline" onclick="event.stopPropagation();saveSong('${song.id}','${escapeHtml(song.title)}','${escapeHtml(song.artist)}','${song.thumbnail}')" aria-label="Save ${escapeHtml(song.title)}">Save</button>
                 <button class="btn btn-outline" onclick="event.stopPropagation();addToPlaylist('${song.id}')" aria-label="Add to playlist">+ List</button>
                 <button class="favorite-btn" onclick="event.stopPropagation();toggleFavorite('${song.id}')" id="fav_${song.id}" aria-label="Toggle favorite">♡</button>
@@ -1144,27 +1194,31 @@ function displayResults(songs) {
 }
 
 // ============================================
-// PLAY VIDEO
+// PLAY SONG - Shows in Mini Player
 // ============================================
-function playVideo(videoId, title, artist) {
+function playSong(videoId, title, artist, thumbnail) {
     if (!isPlayerReady) { 
         showToast('Player is loading...', 'info'); 
         return; 
     }
+    
     currentVideoId = videoId;
+    currentSongData = { title, artist, thumbnail };
+    
+    // Update mini player
+    document.getElementById('miniTitle').textContent = title;
+    document.getElementById('miniArtist').textContent = artist;
+    document.getElementById('miniThumbnailImg').src = thumbnail || '';
+    document.getElementById('miniPlayer').classList.add('active');
+    document.getElementById('progressFill').style.width = '0%';
+    
+    // Load and play
     player.loadVideoById(videoId);
-    document.getElementById('nowPlaying').innerHTML = `
-        <span class="now-label">Now Playing</span>
-        <p class="song-title">${escapeHtml(title)}</p>
-        <p class="song-artist">${escapeHtml(artist)}</p>
-    `;
-    document.getElementById('nowPlaying').classList.add('active');
-    setTimeout(() => {
-        document.getElementById('playerContainer').scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-        });
-    }, 300);
+    
+    // Update now playing text in old player (hidden but used for reference)
+    document.getElementById('nowPlaying')?.classList.add('active');
+    
+    showToast(`▶ ${title}`, 'info');
 }
 
 // ============================================
@@ -1356,7 +1410,7 @@ function shareSong() {
     const url = `https://youtube.com/watch?v=${currentVideoId}`;
     if (navigator.share) {
         navigator.share({ 
-            title: 'Check out this track on VOFO', 
+            title: `Check out "${currentSongData?.title}" on VOFO`, 
             url: url 
         }).catch(() => {});
     } else {
