@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <meta name="autoplay" content="true" />
     <title>✦ VOFO — Music Experience</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>" />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -893,6 +894,87 @@ let isPlaying = false;
 let currentSongData = null;
 
 // ============================================
+// AUDIO CONTEXT FOR BACKGROUND PLAYBACK
+// ============================================
+let audioContext = null;
+
+function initAudioContext() {
+    try {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().catch(() => {});
+        }
+        return audioContext;
+    } catch (e) {
+        console.log('AudioContext not supported');
+        return null;
+    }
+}
+
+// Resume audio on user interaction
+function resumeAudioOnInteraction() {
+    initAudioContext();
+    document.removeEventListener('click', resumeAudioOnInteraction);
+    document.removeEventListener('touchstart', resumeAudioOnInteraction);
+}
+
+document.addEventListener('click', resumeAudioOnInteraction);
+document.addEventListener('touchstart', resumeAudioOnInteraction);
+
+// Handle visibility change - keep playing in background
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && player && isPlayerReady) {
+        initAudioContext();
+        if (isPlaying) {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            // Ensure video keeps playing
+            try {
+                if (player && player.getPlayerState && player.getPlayerState() === 2) {
+                    player.playVideo();
+                }
+            } catch (e) {}
+        }
+    }
+});
+
+// iOS Safari specific
+document.addEventListener('webkitvisibilitychange', () => {
+    if (!document.webkitHidden && player && isPlayerReady) {
+        initAudioContext();
+        if (isPlaying && audioContext) {
+            audioContext.resume();
+        }
+    }
+});
+
+// iOS background audio fix
+function setupIOSAudio() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isIOS) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const buffer = ctx.createBuffer(1, 1, 22050);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+            setTimeout(() => {
+                if (ctx.state === 'running') ctx.suspend();
+            }, 100);
+        } catch (e) {}
+    }
+}
+
+document.addEventListener('touchstart', setupIOSAudio, { once: true });
+document.addEventListener('click', setupIOSAudio, { once: true });
+
+// ============================================
 // PARTICLES
 // ============================================
 (function createParticles() {
@@ -1042,6 +1124,13 @@ let volume = 70;
 let progressInterval = null;
 
 function onYouTubeIframeAPIReady() {
+    // Create audio context for background playback
+    try {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    } catch (e) {}
+
     player = new YT.Player('player', {
         height: '1', 
         width: '1', 
@@ -1061,7 +1150,11 @@ function onYouTubeIframeAPIReady() {
         events: {
             onReady: () => { 
                 isPlayerReady = true; 
-                player.setVolume(volume); 
+                player.setVolume(volume);
+                // Resume audio context on ready
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
             },
             onStateChange: onPlayerStateChange,
             onError: () => showToast('⚠️ Unable to play this track', 'error')
@@ -1076,6 +1169,10 @@ function onPlayerStateChange(event) {
         btn.textContent = '⏸';
         document.getElementById('miniPlayer').classList.add('active');
         startProgress();
+        // Ensure audio context is active
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         btn.textContent = '▶';
@@ -1094,14 +1191,11 @@ function togglePlay() {
         return; 
     }
     if (currentVideoId) {
+        // Resume audio context before playing
+        initAudioContext();
         isPlaying ? player.pauseVideo() : player.playVideo();
     }
 }
-
-document.getElementById('volumeSlider')?.addEventListener('input', function() {
-    volume = parseInt(this.value);
-    if (player) player.setVolume(volume);
-});
 
 // ============================================
 // PROGRESS BAR
@@ -1202,6 +1296,9 @@ function playSong(videoId, title, artist, thumbnail) {
         return; 
     }
     
+    // Resume audio context
+    initAudioContext();
+    
     currentVideoId = videoId;
     currentSongData = { title, artist, thumbnail };
     
@@ -1214,9 +1311,6 @@ function playSong(videoId, title, artist, thumbnail) {
     
     // Load and play
     player.loadVideoById(videoId);
-    
-    // Update now playing text in old player (hidden but used for reference)
-    document.getElementById('nowPlaying')?.classList.add('active');
     
     showToast(`▶ ${title}`, 'info');
 }
