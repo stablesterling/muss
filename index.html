@@ -993,8 +993,6 @@ window.onload = () => {
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
                 fetchTrending();
-                // Verify token is valid
-                verifyToken();
             });
         } catch (e) {
             localStorage.removeItem('vofo_user');
@@ -1002,27 +1000,6 @@ window.onload = () => {
         }
     }
 };
-
-// ============================================
-// VERIFY TOKEN
-// ============================================
-async function verifyToken() {
-    if (!token) return;
-    try {
-        const response = await fetch(`${BACKEND_URL}/auth/me?token=${token}`);
-        if (!response.ok) {
-            // Token expired or invalid
-            localStorage.removeItem('vofo_user');
-            localStorage.removeItem('vofo_token');
-            token = null;
-            currentUser = null;
-            showToast('Session expired. Please login again.', 'error');
-            setTimeout(() => location.reload(), 2000);
-        }
-    } catch (error) {
-        console.error('Token verification error:', error);
-    }
-}
 
 // ============================================
 // LOGIN ANIMATION
@@ -1368,7 +1345,7 @@ function renderTracks(tracks, target) {
     // Store tracks for playlist
     window._currentTrackList = tracks;
     
-    // Only check favorites if user is logged in AND has a valid token
+    // Only check favorites if user is logged in
     if (currentUser && token) {
         tracks.forEach(s => checkFavorite(s.id));
     }
@@ -1434,7 +1411,10 @@ async function toggleFavorite(songId) {
             }
         } else {
             const data = await response.json();
-            showToast(data.detail || 'Failed to update favorite', 'error');
+            // Only show error if not 401 (unauthorized)
+            if (response.status !== 401) {
+                showToast(data.detail || 'Failed to update favorite', 'error');
+            }
         }
     } catch (error) {
         console.error('Favorite error:', error);
@@ -1454,14 +1434,9 @@ async function checkFavorite(songId) {
         });
         
         if (!response.ok) {
-            // If 401 Unauthorized, clear token and reload
+            // Silently ignore 401 errors - don't terminate session
             if (response.status === 401) {
-                localStorage.removeItem('vofo_user');
-                localStorage.removeItem('vofo_token');
-                token = null;
-                currentUser = null;
-                showToast('Session expired. Please login again.', 'error');
-                setTimeout(() => location.reload(), 2000);
+                // Just return without showing error or terminating session
                 return;
             }
             return;
@@ -1474,7 +1449,8 @@ async function checkFavorite(songId) {
             btn.textContent = '♥';
         }
     } catch (error) {
-        console.error('Check favorite error:', error);
+        // Silently ignore errors
+        console.debug('Check favorite error:', error);
     }
 }
 
@@ -1525,7 +1501,9 @@ async function toggleLikeCurrent() {
             }
         } else {
             const data = await response.json();
-            showToast(data.detail || 'Failed to update', 'error');
+            if (response.status !== 401) {
+                showToast(data.detail || 'Failed to update', 'error');
+            }
         }
     } catch (error) {
         console.error('Like error:', error);
@@ -1542,11 +1520,8 @@ async function checkIfLiked(id) {
         });
         
         if (!response.ok) {
+            // Silently ignore 401 errors
             if (response.status === 401) {
-                localStorage.removeItem('vofo_user');
-                localStorage.removeItem('vofo_token');
-                token = null;
-                currentUser = null;
                 return;
             }
             return;
@@ -1555,7 +1530,8 @@ async function checkIfLiked(id) {
         const data = await response.json();
         document.getElementById('likeBtn').classList.toggle('liked', data.isFavorited || false);
     } catch (error) {
-        console.error('Check if liked error:', error);
+        // Silently ignore errors
+        console.debug('Check if liked error:', error);
     }
 }
 
@@ -1575,13 +1551,14 @@ async function fetchLiked() {
         
         if (!response.ok) {
             if (response.status === 401) {
-                // Token expired
-                localStorage.removeItem('vofo_user');
-                localStorage.removeItem('vofo_token');
-                token = null;
-                currentUser = null;
-                showToast('Session expired. Please login again.', 'error');
-                setTimeout(() => location.reload(), 2000);
+                // Don't show error for 401 - just show empty state
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔒</div>
+                        <h3>Please login</h3>
+                        <p>Sign in to see your favorites</p>
+                    </div>
+                `;
                 return;
             }
             throw new Error('Failed to fetch favorites');
