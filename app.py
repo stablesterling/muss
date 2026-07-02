@@ -5,14 +5,14 @@ Deployment-ready for Render with PostgreSQL
 
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, Header
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Text, Boolean, func
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from jose import jwt
+from jose import jwt, JWTError
 from ytmusicapi import YTMusic
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -212,7 +212,7 @@ def create_access_token(data: dict) -> str:
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except:
+    except JWTError:
         return None
 
 def get_db():
@@ -222,14 +222,23 @@ def get_db():
     finally:
         db.close()
 
+# Updated get_current_user to support both header and query param
 async def get_current_user(
-    token: str = Query(None),
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    if not token:
+    # Try to get token from Authorization header first
+    auth_token = None
+    if authorization and authorization.startswith("Bearer "):
+        auth_token = authorization.replace("Bearer ", "")
+    elif token:
+        auth_token = token
+    
+    if not auth_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    payload = decode_token(token)
+    payload = decode_token(auth_token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
     
