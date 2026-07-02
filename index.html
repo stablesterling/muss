@@ -882,9 +882,13 @@
 
 <script>
 // ============================================
-// BACKEND CONFIGURATION
+// BACKEND CONFIGURATION - FIXED
 // ============================================
+// Use the same origin as the backend (Render serves both frontend and backend)
 const BACKEND_URL = window.location.origin + '/api';
+
+console.log('✦ VoFo Music Experience');
+console.log('🎵 Backend: ' + BACKEND_URL);
 
 let player = null;
 let currentUser = null;
@@ -913,13 +917,18 @@ function showToast(message, type = 'info') {
 // INIT
 // ============================================
 window.onload = () => {
-    const savedUser = localStorage.getItem('vofo_user');
+    // Check for saved token and user
     const savedToken = localStorage.getItem('vofo_token');
+    const savedUser = localStorage.getItem('vofo_user');
     
-    if (savedUser && savedToken) {
+    console.log('🔑 Token from localStorage:', savedToken ? 'Present' : 'Missing');
+    console.log('👤 User from localStorage:', savedUser ? JSON.parse(savedUser).username : 'Missing');
+    
+    if (savedToken && savedUser) {
         try {
-            currentUser = JSON.parse(savedUser);
             token = savedToken;
+            currentUser = JSON.parse(savedUser);
+            
             showLoginAnimation().then(() => {
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
@@ -928,6 +937,7 @@ window.onload = () => {
                 verifyToken();
             });
         } catch (e) {
+            console.error('Error parsing saved user:', e);
             localStorage.removeItem('vofo_user');
             localStorage.removeItem('vofo_token');
         }
@@ -948,8 +958,10 @@ async function verifyToken() {
             token = null;
             currentUser = null;
             showToast('Session expired. Please login again.', 'error');
-            // Don't reload immediately, let user see the message
             setTimeout(() => location.reload(), 2000);
+        } else {
+            const data = await response.json();
+            console.log('✅ Token verified for user:', data.username);
         }
     } catch (error) {
         console.error('Token verification error:', error);
@@ -1038,6 +1050,8 @@ async function handleAuth() {
             ? { username: u, password: p }
             : { username: u, email: u, password: p };
 
+        console.log('📤 Sending auth request to:', `${BACKEND_URL}${endpoint}`);
+        
         const response = await fetch(`${BACKEND_URL}${endpoint}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1045,14 +1059,18 @@ async function handleAuth() {
         });
         
         const data = await response.json();
+        console.log('📥 Auth response:', data);
         
         if (response.ok) {
             token = data.access_token;
             currentUser = data.user;
             
+            console.log('✅ Auth successful for user:', currentUser.username);
+            console.log('🔑 Token stored:', token ? 'Yes' : 'No');
+            
             // Store both user and token
-            localStorage.setItem('vofo_user', JSON.stringify(currentUser));
             localStorage.setItem('vofo_token', token);
+            localStorage.setItem('vofo_user', JSON.stringify(currentUser));
             
             document.getElementById('authScreen').style.opacity = '0';
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -1592,10 +1610,9 @@ document.getElementById('playerBar')?.addEventListener('touchmove', (e) => {
     }
 }, { passive: false });
 
-console.log('✦ VoFo Music Experience');
-console.log('🎵 Backend: ' + BACKEND_URL);
-console.log('👤 User: ' + (currentUser ? currentUser.username : 'Not logged in'));
-console.log('🔑 Token: ' + (token ? 'Present' : 'Missing'));
+// Display user status
+console.log('👤 Current user:', currentUser ? currentUser.username : 'Not logged in');
+console.log('🔑 Token:', token ? 'Present' : 'Missing');
 </script>
 </body>
 </html>
