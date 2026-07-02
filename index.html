@@ -948,7 +948,8 @@ async function verifyToken() {
             token = null;
             currentUser = null;
             showToast('Session expired. Please login again.', 'error');
-            location.reload();
+            // Don't reload immediately, let user see the message
+            setTimeout(() => location.reload(), 2000);
         }
     } catch (error) {
         console.error('Token verification error:', error);
@@ -1049,6 +1050,7 @@ async function handleAuth() {
             token = data.access_token;
             currentUser = data.user;
             
+            // Store both user and token
             localStorage.setItem('vofo_user', JSON.stringify(currentUser));
             localStorage.setItem('vofo_token', token);
             
@@ -1390,7 +1392,7 @@ async function checkFavorite(songId) {
                 token = null;
                 currentUser = null;
                 showToast('Session expired. Please login again.', 'error');
-                location.reload();
+                setTimeout(() => location.reload(), 2000);
                 return;
             }
             return;
@@ -1510,7 +1512,7 @@ async function fetchLiked() {
                 token = null;
                 currentUser = null;
                 showToast('Session expired. Please login again.', 'error');
-                location.reload();
+                setTimeout(() => location.reload(), 2000);
                 return;
             }
             throw new Error('Failed to fetch favorites');
@@ -1593,6 +1595,7 @@ document.getElementById('playerBar')?.addEventListener('touchmove', (e) => {
 console.log('✦ VoFo Music Experience');
 console.log('🎵 Backend: ' + BACKEND_URL);
 console.log('👤 User: ' + (currentUser ? currentUser.username : 'Not logged in'));
+console.log('🔑 Token: ' + (token ? 'Present' : 'Missing'));
 </script>
 </body>
 </html>
