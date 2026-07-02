@@ -5,14 +5,15 @@ Deployment-ready for Render with PostgreSQL
 
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Depends, Query, Header
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Text, Boolean, func
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session, relationship
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
+from jose import jwt
 from ytmusicapi import YTMusic
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -44,7 +45,7 @@ if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
     engine = create_engine(DATABASE_URL, connect_args=connect_args)
 else:
-    engine = create_engine(DATABASE_URL, pool_size=5, max_overflow=10)
+    engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -53,12 +54,7 @@ Base = declarative_base()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # YouTube Music API
-try:
-    yt = YTMusic()
-    print("✅ YouTube Music API initialized successfully")
-except Exception as e:
-    print(f"⚠️ YouTube Music API init error: {e}")
-    yt = None
+yt = YTMusic()
 
 # ============================================
 # MODELS
@@ -126,7 +122,6 @@ class PlaylistSong(Base):
 
 # Create tables
 Base.metadata.create_all(bind=engine)
-print("✅ Database tables created successfully")
 
 # ============================================
 # PYDANTIC SCHEMAS
@@ -212,7 +207,7 @@ def create_access_token(data: dict) -> str:
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except:
         return None
 
 def get_db():
@@ -222,23 +217,14 @@ def get_db():
     finally:
         db.close()
 
-# Updated get_current_user to support both header and query param
 async def get_current_user(
-    authorization: Optional[str] = Header(None),
-    token: Optional[str] = Query(None),
+    token: str = Query(None),
     db: Session = Depends(get_db)
 ):
-    # Try to get token from Authorization header first
-    auth_token = None
-    if authorization and authorization.startswith("Bearer "):
-        auth_token = authorization.replace("Bearer ", "")
-    elif token:
-        auth_token = token
-    
-    if not auth_token:
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    payload = decode_token(auth_token)
+    payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
     
@@ -262,7 +248,7 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS - Allow all origins for development
+# CORS - Allow all origins for GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -282,8 +268,7 @@ async def health_check(db: Session = Depends(get_db)):
         return {
             "status": "OK",
             "timestamp": datetime.utcnow().isoformat(),
-            "message": "✦ VOFO Music is live",
-            "database": "PostgreSQL" if not DATABASE_URL.startswith("sqlite") else "SQLite"
+            "message": "✦ VOFO Music is live"
         }
     except Exception as e:
         return {"status": "ERROR", "message": str(e)}
@@ -292,15 +277,11 @@ async def health_check(db: Session = Depends(get_db)):
 
 @app.post("/api/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Check if username exists
     if db.query(User).filter(User.username == user_data.username).first():
         raise HTTPException(400, "Username already taken")
-    
-    # Check if email exists
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(400, "Email already registered")
     
-    # Create new user
     user = User(
         username=user_data.username,
         email=user_data.email,
@@ -310,7 +291,6 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     
-    # Create token
     token = create_access_token({"sub": user.id})
     
     return {
@@ -321,7 +301,6 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    # Find user by username or email
     user = db.query(User).filter(
         (User.username == user_data.username) | (User.email == user_data.username)
     ).first()
@@ -329,11 +308,9 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(user_data.password, user.password_hash):
         raise HTTPException(401, "Invalid credentials")
     
-    # Update last login
     user.last_login = datetime.utcnow()
     db.commit()
     
-    # Create token
     token = create_access_token({"sub": user.id})
     
     return {
@@ -350,20 +327,10 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @app.get("/api/trending")
 async def get_trending():
-    """Get trending songs with fallback to search if charts fail"""
     try:
-        if not yt:
-            raise Exception("YouTube Music API not initialized")
-        
-        # Try to get charts
         charts = yt.get_charts(country="IN")
         songs = charts.get('songs', {}).get('items', [])
         
-        # If no songs, fallback to search
-        if not songs:
-            results = yt.search("top songs 2026", filter="songs")
-            songs = results[:20] if results else []
-            
         results = []
         for s in songs[:20]:
             thumbnails = s.get('thumbnails', [])
@@ -379,19 +346,14 @@ async def get_trending():
                 "duration": s.get('duration', '')
             })
         
-        return results if results else []
-        
+        return results
     except Exception as e:
         logging.error(f"Trending error: {str(e)}")
         return []
 
 @app.get("/api/search")
 async def search_songs(q: str = Query(..., min_length=1)):
-    """Search for songs on YouTube Music"""
     try:
-        if not yt:
-            raise Exception("YouTube Music API not initialized")
-            
         results = yt.search(q, filter="songs")
         
         songs = []
@@ -422,7 +384,6 @@ async def add_favorite(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Check if already favorited
     existing = db.query(Favorite).filter(
         Favorite.user_id == current_user.id,
         Favorite.song_id == song.song_id
@@ -431,7 +392,6 @@ async def add_favorite(
     if existing:
         return {"message": "Already in favorites", "favorited": True}
     
-    # Add to favorites
     favorite = Favorite(
         user_id=current_user.id,
         song_id=song.song_id,
@@ -573,7 +533,6 @@ async def add_to_playlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Check if playlist exists and belongs to user
     playlist = db.query(Playlist).filter(
         Playlist.id == playlist_id,
         Playlist.user_id == current_user.id
@@ -582,7 +541,6 @@ async def add_to_playlist(
     if not playlist:
         raise HTTPException(404, "Playlist not found or you don't own it")
     
-    # Check if song already in playlist
     existing = db.query(PlaylistSong).filter(
         PlaylistSong.playlist_id == playlist_id,
         PlaylistSong.song_id == song.song_id
@@ -591,12 +549,10 @@ async def add_to_playlist(
     if existing:
         return {"message": "Already in playlist"}
     
-    # Get max position
     max_pos = db.query(PlaylistSong).filter(
         PlaylistSong.playlist_id == playlist_id
     ).count()
     
-    # Add song to playlist
     playlist_song = PlaylistSong(
         playlist_id=playlist_id,
         song_id=song.song_id,
@@ -618,7 +574,6 @@ async def remove_from_playlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Check if playlist exists and belongs to user
     playlist = db.query(Playlist).filter(
         Playlist.id == playlist_id,
         Playlist.user_id == current_user.id
@@ -627,7 +582,6 @@ async def remove_from_playlist(
     if not playlist:
         raise HTTPException(404, "Playlist not found or you don't own it")
     
-    # Remove song from playlist
     result = db.query(PlaylistSong).filter(
         PlaylistSong.playlist_id == playlist_id,
         PlaylistSong.song_id == song_id
@@ -645,7 +599,6 @@ async def delete_playlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Check if playlist exists and belongs to user
     playlist = db.query(Playlist).filter(
         Playlist.id == playlist_id,
         Playlist.user_id == current_user.id
@@ -654,7 +607,6 @@ async def delete_playlist(
     if not playlist:
         raise HTTPException(404, "Playlist not found or you don't own it")
     
-    # Delete playlist
     db.delete(playlist)
     db.commit()
     
@@ -672,9 +624,9 @@ async def serve_frontend():
         <!DOCTYPE html>
         <html>
         <head><title>✦ VOFO Music</title></head>
-        <body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:radial-gradient(circle at 50% 50%, #1c1c1c 0%, #0a0a0a 100%);color:white;font-family:sans-serif;margin:0;text-align:center;padding:20px;">
+        <body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:white;font-family:sans-serif;margin:0;text-align:center;padding:20px;">
             <div>
-                <h1 style="font-size:4rem;background:linear-gradient(135deg,#c5a367,#f0d080);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">✦ VOFO</h1>
+                <h1 style="font-size:4rem;background:linear-gradient(135deg,#f7971e,#ffd200);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">✦ VOFO</h1>
                 <p style="color:rgba(255,255,255,0.6);font-size:1.2rem;">Music Experience</p>
                 <p style="color:rgba(255,255,255,0.3);font-size:0.9rem;margin-top:20px;">Please ensure index.html is in the same directory</p>
             </div>
@@ -693,5 +645,5 @@ if __name__ == "__main__":
         "app:app",
         host="0.0.0.0",
         port=port,
-        reload=False  # Set to False for production
+        reload=False
     )
