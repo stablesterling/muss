@@ -22,6 +22,7 @@
             font-family: var(--sans); 
             min-height: 100vh;
             overflow-x: hidden;
+            padding-bottom: 80px;
         }
 
         #bg-blur {
@@ -420,12 +421,35 @@
             color: #ff4b2b;
         }
 
+        /* VIDEO TOGGLE BUTTON */
+        .video-toggle-btn {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            z-index: 999;
+            background: rgba(197,163,103,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 10px 15px;
+            border-radius: 50px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: var(--sans);
+            letter-spacing: 0.5px;
+        }
+        .video-toggle-btn:hover {
+            background: rgba(197,163,103,0.3);
+            transform: scale(1.05);
+        }
+
         /* PLAYER BAR */
         .player { 
             position: fixed; 
             bottom: 0; 
             width: 100%; 
-            background: rgba(0,0,0,.85); 
+            background: rgba(0,0,0,.95); 
             backdrop-filter: blur(20px); 
             padding: 15px 20px; 
             display: flex; 
@@ -445,7 +469,7 @@
             flex-direction: column; 
             justify-content: center; 
             gap: 40px;
-            background: rgba(0,0,0,0.95);
+            background: rgba(0,0,0,0.98);
             padding: 60px 30px; 
         }
         
@@ -468,6 +492,7 @@
         .player-info { 
             flex: 1; 
             min-width: 0; 
+            cursor: pointer;
         }
         .player-info div:first-child { 
             font-weight: 600; 
@@ -501,12 +526,19 @@
 
         #yt-player { 
             position: fixed; 
-            top: -10px; 
-            left: -10px; 
-            width: 1px; 
-            height: 1px; 
-            opacity: 0; 
-            pointer-events: none; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: -1;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        #yt-player.show-video {
+            opacity: 1;
+            z-index: 0;
+            pointer-events: all;
         }
 
         .controls-main { 
@@ -690,7 +722,7 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%) translateY(-100%);
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             backdrop-filter: blur(20px);
             padding: 12px 24px;
             border-radius: 8px;
@@ -739,6 +771,12 @@
             .track:hover {
                 transform: translateX(5px);
             }
+            .video-toggle-btn {
+                bottom: 90px;
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 10px;
+            }
         }
         
         @media (max-width: 600px) {
@@ -760,6 +798,12 @@
             }
             .track .track-actions button {
                 font-size: 14px;
+            }
+            .video-toggle-btn {
+                bottom: 80px;
+                right: 10px;
+                padding: 6px 10px;
+                font-size: 9px;
             }
         }
     </style>
@@ -851,6 +895,9 @@
     </footer>
 </div>
 
+<!-- Video Toggle Button -->
+<button class="video-toggle-btn" id="videoToggleBtn" onclick="toggleVideo()">🎬 Show Video</button>
+
 <!-- Player Bar -->
 <div class="player hidden" id="playerBar">
     <button class="back-btn" onclick="closeExpand(event)">↓</button>
@@ -894,6 +941,28 @@ let currentPlaylist = [];
 let currentIndex = -1;
 let isPlaying = false;
 let currentSongData = null;
+let showVideo = false;
+
+// ============================================
+// VIDEO TOGGLE
+// ============================================
+function toggleVideo() {
+    showVideo = !showVideo;
+    const playerEl = document.getElementById('yt-player');
+    const btn = document.getElementById('videoToggleBtn');
+    
+    if (showVideo) {
+        playerEl.classList.add('show-video');
+        btn.textContent = '🎵 Hide Video';
+        btn.style.background = 'rgba(197,163,103,0.4)';
+        showToast('🎬 Video visible', 'info');
+    } else {
+        playerEl.classList.remove('show-video');
+        btn.textContent = '🎬 Show Video';
+        btn.style.background = 'rgba(197,163,103,0.2)';
+        showToast('🎵 Audio only mode', 'info');
+    }
+}
 
 // ============================================
 // TOAST NOTIFICATIONS
@@ -948,7 +1017,7 @@ async function verifyToken() {
             token = null;
             currentUser = null;
             showToast('Session expired. Please login again.', 'error');
-            location.reload();
+            setTimeout(() => location.reload(), 2000);
         }
     } catch (error) {
         console.error('Token verification error:', error);
@@ -977,7 +1046,7 @@ function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt-player', {
         playerVars: { 
             autoplay: 1, 
-            controls: 0, 
+            controls: 1, 
             playsinline: 1,
             modestbranding: 1,
             rel: 0
@@ -985,6 +1054,7 @@ function onYouTubeIframeAPIReady() {
         events: {
             onReady: () => {
                 player.setVolume(70);
+                console.log('✅ YouTube Player ready');
             },
             onStateChange: (e) => {
                 const playBtn = document.getElementById('playBtn');
@@ -1005,7 +1075,8 @@ function onYouTubeIframeAPIReady() {
                     skipNext();
                 }
             },
-            onError: () => {
+            onError: (e) => {
+                console.error('YouTube Player Error:', e);
                 showToast('⚠️ Unable to play this track', 'error');
             }
         }
@@ -1297,7 +1368,7 @@ function renderTracks(tracks, target) {
     // Store tracks for playlist
     window._currentTrackList = tracks;
     
-    // Check favorites if user is logged in
+    // Only check favorites if user is logged in AND has a valid token
     if (currentUser && token) {
         tracks.forEach(s => checkFavorite(s.id));
     }
@@ -1372,12 +1443,30 @@ async function toggleFavorite(songId) {
 }
 
 async function checkFavorite(songId) {
-    if (!currentUser || !token) return;
+    // Only check if user is logged in and has a token
+    if (!currentUser || !token) {
+        return;
+    }
     
     try {
         const response = await fetch(`${BACKEND_URL}/favorites/check/${songId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        
+        if (!response.ok) {
+            // If 401 Unauthorized, clear token and reload
+            if (response.status === 401) {
+                localStorage.removeItem('vofo_user');
+                localStorage.removeItem('vofo_token');
+                token = null;
+                currentUser = null;
+                showToast('Session expired. Please login again.', 'error');
+                setTimeout(() => location.reload(), 2000);
+                return;
+            }
+            return;
+        }
+        
         const data = await response.json();
         const btn = document.getElementById(`fav_${songId}`);
         if (btn && data.isFavorited) {
@@ -1451,6 +1540,18 @@ async function checkIfLiked(id) {
         const response = await fetch(`${BACKEND_URL}/favorites/check/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('vofo_user');
+                localStorage.removeItem('vofo_token');
+                token = null;
+                currentUser = null;
+                return;
+            }
+            return;
+        }
+        
         const data = await response.json();
         document.getElementById('likeBtn').classList.toggle('liked', data.isFavorited || false);
     } catch (error) {
@@ -1480,7 +1581,7 @@ async function fetchLiked() {
                 token = null;
                 currentUser = null;
                 showToast('Session expired. Please login again.', 'error');
-                location.reload();
+                setTimeout(() => location.reload(), 2000);
                 return;
             }
             throw new Error('Failed to fetch favorites');
@@ -1549,6 +1650,10 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.getElementById('playerBar').classList.remove('expanded');
     }
+    if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        toggleVideo();
+    }
 });
 
 // ============================================
@@ -1563,6 +1668,7 @@ document.getElementById('playerBar')?.addEventListener('touchmove', (e) => {
 console.log('✦ VoFo Music Experience');
 console.log('🎵 Backend: ' + BACKEND_URL);
 console.log('👤 User: ' + (currentUser ? currentUser.username : 'Not logged in'));
+console.log('💡 Press "V" to toggle video');
 </script>
 </body>
 </html>
