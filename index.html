@@ -22,7 +22,6 @@
             font-family: var(--sans); 
             min-height: 100vh;
             overflow-x: hidden;
-            padding-bottom: 80px;
         }
 
         #bg-blur {
@@ -426,7 +425,7 @@
             position: fixed; 
             bottom: 0; 
             width: 100%; 
-            background: rgba(0,0,0,.95); 
+            background: rgba(0,0,0,.85); 
             backdrop-filter: blur(20px); 
             padding: 15px 20px; 
             display: flex; 
@@ -446,7 +445,7 @@
             flex-direction: column; 
             justify-content: center; 
             gap: 40px;
-            background: rgba(0,0,0,0.98);
+            background: rgba(0,0,0,0.95);
             padding: 60px 30px; 
         }
         
@@ -469,7 +468,6 @@
         .player-info { 
             flex: 1; 
             min-width: 0; 
-            cursor: pointer;
         }
         .player-info div:first-child { 
             font-weight: 600; 
@@ -692,7 +690,7 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%) translateY(-100%);
-            background: rgba(0,0,0,0.95);
+            background: rgba(0,0,0,0.9);
             backdrop-filter: blur(20px);
             padding: 12px 24px;
             border-radius: 8px;
@@ -882,13 +880,11 @@
 
 <script>
 // ============================================
-// BACKEND CONFIGURATION - FIXED
+// BACKEND CONFIGURATION
 // ============================================
-// Use the same origin as the backend (Render serves both frontend and backend)
-const BACKEND_URL = window.location.origin + '/api';
-
-console.log('✦ VoFo Music Experience');
-console.log('🎵 Backend: ' + BACKEND_URL);
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000/api'
+    : window.location.origin + '/api';
 
 let player = null;
 let currentUser = null;
@@ -917,18 +913,13 @@ function showToast(message, type = 'info') {
 // INIT
 // ============================================
 window.onload = () => {
-    // Check for saved token and user
-    const savedToken = localStorage.getItem('vofo_token');
     const savedUser = localStorage.getItem('vofo_user');
+    const savedToken = localStorage.getItem('vofo_token');
     
-    console.log('🔑 Token from localStorage:', savedToken ? 'Present' : 'Missing');
-    console.log('👤 User from localStorage:', savedUser ? JSON.parse(savedUser).username : 'Missing');
-    
-    if (savedToken && savedUser) {
+    if (savedUser && savedToken) {
         try {
-            token = savedToken;
             currentUser = JSON.parse(savedUser);
-            
+            token = savedToken;
             showLoginAnimation().then(() => {
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
@@ -937,7 +928,6 @@ window.onload = () => {
                 verifyToken();
             });
         } catch (e) {
-            console.error('Error parsing saved user:', e);
             localStorage.removeItem('vofo_user');
             localStorage.removeItem('vofo_token');
         }
@@ -958,10 +948,7 @@ async function verifyToken() {
             token = null;
             currentUser = null;
             showToast('Session expired. Please login again.', 'error');
-            setTimeout(() => location.reload(), 2000);
-        } else {
-            const data = await response.json();
-            console.log('✅ Token verified for user:', data.username);
+            location.reload();
         }
     } catch (error) {
         console.error('Token verification error:', error);
@@ -1050,8 +1037,6 @@ async function handleAuth() {
             ? { username: u, password: p }
             : { username: u, email: u, password: p };
 
-        console.log('📤 Sending auth request to:', `${BACKEND_URL}${endpoint}`);
-        
         const response = await fetch(`${BACKEND_URL}${endpoint}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1059,18 +1044,13 @@ async function handleAuth() {
         });
         
         const data = await response.json();
-        console.log('📥 Auth response:', data);
         
         if (response.ok) {
             token = data.access_token;
             currentUser = data.user;
             
-            console.log('✅ Auth successful for user:', currentUser.username);
-            console.log('🔑 Token stored:', token ? 'Yes' : 'No');
-            
-            // Store both user and token
-            localStorage.setItem('vofo_token', token);
             localStorage.setItem('vofo_user', JSON.stringify(currentUser));
+            localStorage.setItem('vofo_token', token);
             
             document.getElementById('authScreen').style.opacity = '0';
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -1317,7 +1297,7 @@ function renderTracks(tracks, target) {
     // Store tracks for playlist
     window._currentTrackList = tracks;
     
-    // Only check favorites if user is logged in AND has a valid token
+    // Check favorites if user is logged in
     if (currentUser && token) {
         tracks.forEach(s => checkFavorite(s.id));
     }
@@ -1392,30 +1372,12 @@ async function toggleFavorite(songId) {
 }
 
 async function checkFavorite(songId) {
-    // Only check if user is logged in and has a token
-    if (!currentUser || !token) {
-        return;
-    }
+    if (!currentUser || !token) return;
     
     try {
         const response = await fetch(`${BACKEND_URL}/favorites/check/${songId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) {
-            // If 401 Unauthorized, clear token and reload
-            if (response.status === 401) {
-                localStorage.removeItem('vofo_user');
-                localStorage.removeItem('vofo_token');
-                token = null;
-                currentUser = null;
-                showToast('Session expired. Please login again.', 'error');
-                setTimeout(() => location.reload(), 2000);
-                return;
-            }
-            return;
-        }
-        
         const data = await response.json();
         const btn = document.getElementById(`fav_${songId}`);
         if (btn && data.isFavorited) {
@@ -1489,18 +1451,6 @@ async function checkIfLiked(id) {
         const response = await fetch(`${BACKEND_URL}/favorites/check/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                localStorage.removeItem('vofo_user');
-                localStorage.removeItem('vofo_token');
-                token = null;
-                currentUser = null;
-                return;
-            }
-            return;
-        }
-        
         const data = await response.json();
         document.getElementById('likeBtn').classList.toggle('liked', data.isFavorited || false);
     } catch (error) {
@@ -1530,7 +1480,7 @@ async function fetchLiked() {
                 token = null;
                 currentUser = null;
                 showToast('Session expired. Please login again.', 'error');
-                setTimeout(() => location.reload(), 2000);
+                location.reload();
                 return;
             }
             throw new Error('Failed to fetch favorites');
@@ -1610,9 +1560,9 @@ document.getElementById('playerBar')?.addEventListener('touchmove', (e) => {
     }
 }, { passive: false });
 
-// Display user status
-console.log('👤 Current user:', currentUser ? currentUser.username : 'Not logged in');
-console.log('🔑 Token:', token ? 'Present' : 'Missing');
+console.log('✦ VoFo Music Experience');
+console.log('🎵 Backend: ' + BACKEND_URL);
+console.log('👤 User: ' + (currentUser ? currentUser.username : 'Not logged in'));
 </script>
 </body>
 </html>
